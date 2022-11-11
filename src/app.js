@@ -3,7 +3,7 @@ import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import joi from "joi";
 import dotenv from "dotenv";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 
 dotenv.config();
 
@@ -26,6 +26,9 @@ let db;
 await mongoClient.connect();
 db = mongoClient.db("batepapouol");
 
+const date = Date.now();
+const time = dayjs().format("HH:mm:ss");
+
 //Participants Routes
 
 app.get("/participants", async (req, res) => {
@@ -47,9 +50,6 @@ app.post("/participants", async (req, res) => {
     res.status(422).send(errors);
     return;
   }
-  const date = Date.now();
-  const time = dayjs().format('HH:mm:ss')
-
   const participantInsert = {
     name: participant.name,
     lastStatus: date,
@@ -60,7 +60,7 @@ app.post("/participants", async (req, res) => {
     to: "Todos",
     text: "entra na sala...",
     type: "status",
-    time
+    time,
   };
   try {
     const userExists = await db
@@ -90,7 +90,37 @@ app.get("/messages", async (req, res) => {
   }
 });
 
-app.post("/messages", async (req, res) => {});
+app.post("/messages", async (req, res) => {
+  const message = req.body;
+  const user = req.headers.user;
+  const validation = messagesScheme.validate(message, { abortEarly: false });
+  if (validation.error) {
+    const errors = validation.error.details.map((detail) => detail.message);
+    res.status(422).send(errors);
+    return;
+  }
+
+  const messageInsert = {
+    to: message.to,
+    text: message.text,
+    type: message.type,
+    time
+  }
+
+  try {
+    const userExists = await db
+      .collection("participants")
+      .findOne({ name: user });
+    if (!userExists) {
+      res.sendStatus(422)
+      return;
+    }
+    await db.collection("messages").insertOne(messageInsert);
+    res.sendStatus(201);
+  } catch (error) {
+    res.sendStatus(400);
+  }
+});
 
 //Status Routes
 
