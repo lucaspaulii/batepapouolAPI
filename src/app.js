@@ -145,6 +145,27 @@ app.post("/messages", async (req, res) => {
   }
 });
 
+app.delete("/messages/:id", async (req, res) => {
+  const id = req.params.id;
+  const user = req.headers.user;
+
+  try {
+    const message = await db
+      .collection("messages")
+      .findOne({ _id: ObjectId(id) });
+    console.log(message)
+    console.log(user)
+    if (!message || (message.from !== user)) {
+      res.sendStatus(404);
+      return;
+    }
+    await db.collection("messages").deleteOne({ _id: message._id });
+    res.sendStatus(200);
+  } catch (error) {
+    res.sendStatus(400);
+  }
+});
+
 //Status Routes
 
 app.post("/status", async (req, res) => {
