@@ -1,42 +1,99 @@
 import express from "express";
+import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import joi from "joi";
-import { MongoClient, ObjectId } from "mongodb";
+import dotenv from "dotenv";
+import dayjs from 'dayjs';
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const mongoClient = new MongoClient('mongodb://localhost:27017');
+const participantScheme = joi.object({
+  name: joi.string().required().min(2),
+});
+
+const messagesScheme = joi.object({
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.string().valid("message", "private_message").required(),
+});
+
+const mongoClient = new MongoClient(process.env.MONGO_URI);
 let db;
-mongoClient.connect(() => {
-  db = mongoClient.db("batepapouol");
+await mongoClient.connect();
+db = mongoClient.db("batepapouol");
+
+//Participants Routes
+
+app.get("/participants", async (req, res) => {
+  try {
+    const participants = await db.collection("participants").find().toArray();
+    res.send(participants);
+  } catch (error) {
+    res.sendStatus(400);
+  }
 });
 
-//Participants
+app.post("/participants", async (req, res) => {
+  const participant = req.body;
+  const validation = participantScheme.validate(participant, {
+    abortEarly: false,
+  });
+  if (validation.error) {
+    const errors = validation.error.details.map((detail) => detail.message);
+    res.status(422).send(errors);
+    return;
+  }
+  const date = Date.now();
+  const time = dayjs().format('HH:mm:ss')
 
-app.get('/participants', async (req, res) => {
+  const participantInsert = {
+    name: participant.name,
+    lastStatus: date,
+  };
 
+  const messageInsert = {
+    from: participant.name,
+    to: "Todos",
+    text: "entra na sala...",
+    type: "status",
+    time
+  };
+  try {
+    const userExists = await db
+      .collection("participants")
+      .findOne({ name: participant.name });
+    if (userExists) {
+      res.status(409).send("name already in use");
+      return;
+    }
+    await db.collection("participants").insertOne(participantInsert);
+
+    await db.collection("messages").insertOne(messageInsert);
+    res.sendStatus(201);
+  } catch (error) {
+    res.sendStatus(400);
+  }
 });
 
-app.post('/participants', async (req, res) => {
+//Messages Routes
 
+app.get("/messages", async (req, res) => {
+  try {
+    const messages = await db.collection("messages").find().toArray();
+    res.send(messages);
+  } catch (error) {
+    res.sendStatus(400);
+  }
 });
 
-//Messages
+app.post("/messages", async (req, res) => {});
 
-app.get('/messages', async (req, res) => {
+//Status Routes
 
-});
-
-app.post('/messages', async (req, res) => {
-
-});
-
-//status
-
-app.post('/status', async (req, res) => {
-    
-})
+app.post("/status", async (req, res) => {});
 
 app.listen(5000);
