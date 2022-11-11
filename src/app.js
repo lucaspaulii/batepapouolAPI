@@ -26,8 +26,22 @@ let db;
 await mongoClient.connect();
 db = mongoClient.db("batepapouol");
 
-const date = Date.now();
-const time = dayjs().format("HH:mm:ss");
+// Removing Expired Participants
+
+setInterval(async () => {
+  const EXPIRINGINTERVAL = 10000;
+  try {
+    const participants = await db.collection("participants").find().toArray();
+    let expiredParticipants = participants.filter((obj) => {
+      return obj.lastStatus < Date.now() - EXPIRINGINTERVAL;
+    });
+    expiredParticipants.forEach(async (obj) => {
+      await db.collection("participants").deleteOne({ _id: obj._id });
+    });
+  } catch (error) {
+    console.log(error);
+  }
+}, 15000);
 
 //Participants Routes
 
@@ -52,7 +66,7 @@ app.post("/participants", async (req, res) => {
   }
   const participantInsert = {
     name: participant.name,
-    lastStatus: date,
+    lastStatus: Date.now(),
   };
 
   const messageInsert = {
@@ -60,7 +74,7 @@ app.post("/participants", async (req, res) => {
     to: "Todos",
     text: "entra na sala...",
     type: "status",
-    time,
+    time: dayjs().format("HH:mm:ss"),
   };
   try {
     const userExists = await db
@@ -104,7 +118,7 @@ app.post("/messages", async (req, res) => {
     to: message.to,
     text: message.text,
     type: message.type,
-    time,
+    time: dayjs().format("HH:mm:ss"),
   };
 
   try {
@@ -140,7 +154,7 @@ app.post("/status", async (req, res) => {
       {
         $set: {
           name: userExists.name,
-          lastStatus: date
+          lastStatus: Date.now(),
         },
       }
     );
