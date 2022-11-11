@@ -104,15 +104,15 @@ app.post("/messages", async (req, res) => {
     to: message.to,
     text: message.text,
     type: message.type,
-    time
-  }
+    time,
+  };
 
   try {
     const userExists = await db
       .collection("participants")
       .findOne({ name: user });
     if (!userExists) {
-      res.sendStatus(422)
+      res.sendStatus(422);
       return;
     }
     await db.collection("messages").insertOne(messageInsert);
@@ -124,6 +124,30 @@ app.post("/messages", async (req, res) => {
 
 //Status Routes
 
-app.post("/status", async (req, res) => {});
+app.post("/status", async (req, res) => {
+  const user = req.headers.user;
+
+  try {
+    const userExists = await db
+      .collection("participants")
+      .findOne({ name: user });
+    if (!userExists) {
+      res.sendStatus(404);
+      return;
+    }
+    await db.collection("participants").updateOne(
+      { _id: userExists._id },
+      {
+        $set: {
+          name: userExists.name,
+          lastStatus: date
+        },
+      }
+    );
+    res.sendStatus(200);
+  } catch (error) {
+    res.sendStatus(400);
+  }
+});
 
 app.listen(5000);
