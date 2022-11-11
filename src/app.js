@@ -37,6 +37,14 @@ setInterval(async () => {
     });
     expiredParticipants.forEach(async (obj) => {
       await db.collection("participants").deleteOne({ _id: obj._id });
+      const messageInsert = {
+        from: obj.name,
+        to: "Todos",
+        text: "sai da sala...",
+        type: "status",
+        time: dayjs().format("HH:mm:ss"),
+      };
+      await db.collection("messages").insertOne(messageInsert);
     });
   } catch (error) {
     console.log(error);
@@ -115,6 +123,7 @@ app.post("/messages", async (req, res) => {
   }
 
   const messageInsert = {
+    from: user,
     to: message.to,
     text: message.text,
     type: message.type,
